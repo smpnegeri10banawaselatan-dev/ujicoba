@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hasil Absen</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-4 text-blue-700">Hasil Absen</h1>
+
+    <div class="flex gap-2 mb-4">
+      <input id="search" type="search" placeholder="Cari..." 
+        class="flex-1 px-3 py-2 border rounded shadow-sm focus:ring focus:ring-blue-300" />
+      <button id="reload" class="px-4 py-2 bg-blue-600 text-white rounded shadow">Reload</button>
+      <button id="csv" class="px-4 py-2 bg-green-600 text-white rounded shadow">Download CSV</button>
+    </div>
+
+    <div id="tableWrap" class="overflow-x-auto bg-white shadow rounded-lg">
+      <table id="sheetTable" class="min-w-full text-sm border-collapse" />
+    </div>
+
+    <p class="mt-4 text-xs text-gray-500">
+      Catatan: Spreadsheet harus dipublikasikan ke web agar data bisa dibaca.
+    </p>
+  </div>
+
+<script>
+const SPREADSHEET_ID = '1E765wMRhoe0CtvPXk4-uUrEb-xAce96uy4TNRmriy0Y';
+const SHEET_NAME = 'Hasil Absen';
+
+function gvizUrl(id, sheet) {
+  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheet)}`;
+}
+
+async function fetchSheetJson() {
+  const res = await fetch(gvizUrl(SPREADSHEET_ID, SHEET_NAME));
+  const text = await res.text();
+  const jsonText = text.replace(/^.*setResponse\\(/, '').replace(/\\);?$/, '');
+  return JSON.parse(jsonText);
+}
+
+function tableFromGviz(gJson) {
+  const headers = gJson.table.cols.map(c => c.label || '');
+  const data = gJson.table.rows.map(r => r.c.map(c => (c ? c.v : '')));
+  return { headers, data };
+}
+
+function renderTable(headers, data) {
+  const table = document.getElementById('sheetTable');
+  table.innerHTML = '';
+
+  // header
+  const thead = document.createElement('thead');
+  thead.className = 'bg-blue-100';
+  const trh = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    th.className = 'px-4 py-2 text-left font-semibold';
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  // body
+  const tbody = document.createElement('tbody');
+  data.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.className = i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      td.className = 'px-4 py-2 border-t';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+let currentHeaders = [], currentData = [];
+
+async function loadAndRender() {
+  try {
+    const g = await fetchSheetJson();
+    const { headers, data } = tableFromGviz(g);
+    currentHeaders = headers;
+    currentData = data;
+    renderTable(headers, data);
+  } catch (err) {
+    document.getElementById('tableWrap').innerHTML = 
+      `<div class="p-4 text-red-600">Error: ${err.message}</div>`;
+  }
+}
+
+document.getElementById('reload').addEventListener('click', loadAndRender);
+document.getElementById('csv').addEventListener('click', () => {
+  const all = [currentHeaders, ...currentData];
+  const csv = all.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hasil_absen.csv';
+  a.click();
+});
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  const filtered = currentData.filter(r => r.some(c => String(c).toLowerCase().includes(q)));
+  renderTable(currentHeaders, filtered);
+});
+
+loadAndRender();
+</script>
+</body>
+</html>
