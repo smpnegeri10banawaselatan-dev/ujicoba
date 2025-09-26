@@ -11,6 +11,15 @@
 
   <h1 class="text-3xl font-bold mb-6 text-blue-600">📋 Data Hasil Absen</h1>
 
+  <!-- Toolbar -->
+  <div class="flex flex-wrap gap-2 mb-4 w-full max-w-6xl justify-between items-center">
+    <button id="refreshBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition">
+      🔄 Refresh Data
+    </button>
+    <p id="lastUpdate" class="text-gray-600 text-sm">⏳ Memuat data...</p>
+  </div>
+
+  <!-- Tabel -->
   <div class="w-full max-w-6xl bg-white rounded-xl shadow-lg p-4 overflow-x-auto">
     <table id="dataTable" class="table-auto border-collapse border border-gray-300 w-full text-sm text-left">
       <thead class="bg-blue-500 text-white"></thead>
@@ -18,14 +27,13 @@
     </table>
   </div>
 
-  <!-- Info update -->
-  <p id="lastUpdate" class="mt-4 text-gray-600 text-sm">⏳ Memuat data...</p>
-  <p class="text-gray-500 text-sm">🔄 Data diperbarui otomatis setiap 5 menit</p>
+  <p class="mt-4 text-gray-500 text-sm">⏰ Data diperbarui otomatis setiap 5 menit</p>
 
   <script>
     const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQmGVj2jRrHvlAd2XbAQaG0DR2UVxjHiWGBEjQt3XnN-LItMBV2x92T2OfgeALnyojg7CR3jDiyp0AN/pub?gid=1735243266&single=true&output=csv";
 
     function loadData() {
+      document.getElementById("lastUpdate").textContent = "⏳ Memuat data...";
       Papa.parse(sheetUrl, {
         download: true,
         header: true,
@@ -72,6 +80,9 @@
 
     // Load pertama kali
     loadData();
+
+    // Tombol refresh manual
+    document.getElementById("refreshBtn").addEventListener("click", loadData);
 
     // Update otomatis setiap 5 menit (300.000 ms)
     setInterval(loadData, 300000);
