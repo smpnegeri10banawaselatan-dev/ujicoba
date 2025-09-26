@@ -1,155 +1,80 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Hasil Absen Kehadiran Siswa</title>
-  
-  <!-- Tailwind -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hasil Absen</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-  <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
-  <div class="max-w-6xl mx-auto">
-    <h1 class="text-2xl font-bold mb-4 text-blue-700">Hasil Absen Kehadiran Siswa</h1>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
 
-    <!-- Toolbar -->
-    <div class="flex gap-2 mb-4">
-      <input id="search" type="search" placeholder="Cari..." 
-        class="flex-1 px-3 py-2 border rounded shadow-sm focus:ring focus:ring-blue-300" />
-      <button id="reload" class="px-4 py-2 bg-blue-600 text-white rounded shadow">Reload</button>
-      <button id="csv" class="px-4 py-2 bg-green-600 text-white rounded shadow">Download CSV</button>
-    </div>
+  <h1 class="text-3xl font-bold mb-6 text-blue-600">📋 Data Hasil Absen</h1>
 
-    <!-- Table -->
-    <div id="tableWrap" class="overflow-x-auto bg-white shadow rounded-lg">
-      <table id="sheetTable" class="min-w-full text-sm border-collapse"></table>
-    </div>
-
-    <!-- Pagination -->
-    <nav class="mt-4">
-      <ul id="pagination" class="pagination justify-content-center"></ul>
-    </nav>
-
-    <!-- Last update info -->
-    <p id="lastUpdate" class="text-gray-500 text-sm mt-2 text-center"></p>
+  <div class="w-full max-w-6xl bg-white rounded-xl shadow-lg p-4 overflow-x-auto">
+    <table id="dataTable" class="table-auto border-collapse border border-gray-300 w-full text-sm text-left">
+      <thead class="bg-blue-500 text-white"></thead>
+      <tbody></tbody>
+    </table>
   </div>
 
-<script>
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vToe0xNuzA78YNxdhI7-JGaA1oPBuRH9JlQgzwoaE8C0U5kG4FNOajyzKyddqkKAWE0hDKX9vrq-QhB/pub?gid=1735243266&single=true&output=csv";
+  <!-- Info update -->
+  <p id="lastUpdate" class="mt-4 text-gray-600 text-sm">⏳ Memuat data...</p>
+  <p class="text-gray-500 text-sm">🔄 Data diperbarui otomatis setiap 5 menit</p>
 
-let currentHeaders = [], currentData = [];
-let currentPage = 1;
-const rowsPerPage = 10;
+  <script>
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQmGVj2jRrHvlAd2XbAQaG0DR2UVxjHiWGBEjQt3XnN-LItMBV2x92T2OfgeALnyojg7CR3jDiyp0AN/pub?gid=1735243266&single=true&output=csv";
 
-function renderTable(headers, data) {
-  const table = document.getElementById('sheetTable');
-  table.innerHTML = '';
+    function loadData() {
+      Papa.parse(sheetUrl, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          const data = results.data;
+          const tableHead = document.querySelector("#dataTable thead");
+          const tableBody = document.querySelector("#dataTable tbody");
 
-  // Header
-  const thead = document.createElement('thead');
-  thead.className = 'bg-blue-100';
-  const trh = document.createElement('tr');
-  headers.forEach(h => {
-    const th = document.createElement('th');
-    th.textContent = h;
-    th.className = 'px-4 py-2 text-left font-semibold';
-    trh.appendChild(th);
-  });
-  thead.appendChild(trh);
-  table.appendChild(thead);
+          // Kosongkan tabel sebelum isi ulang
+          tableHead.innerHTML = "";
+          tableBody.innerHTML = "";
 
-  // Body (pagination slice)
-  const tbody = document.createElement('tbody');
-  const start = (currentPage - 1) * rowsPerPage;
-  const end = start + rowsPerPage;
-  const pageData = data.slice(start, end);
+          if (data.length === 0) return;
 
-  pageData.forEach((row, i) => {
-    const tr = document.createElement('tr');
-    tr.className = i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-    row.forEach(cell => {
-      const td = document.createElement('td');
-      td.textContent = cell;
-      td.className = 'px-4 py-2 border-t';
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
+          // Buat header tabel
+          const headerRow = document.createElement("tr");
+          Object.keys(data[0]).forEach(col => {
+            const th = document.createElement("th");
+            th.className = "border border-gray-300 px-4 py-2 font-semibold";
+            th.textContent = col;
+            headerRow.appendChild(th);
+          });
+          tableHead.appendChild(headerRow);
 
-  renderPagination(data.length);
-}
+          // Buat baris data
+          data.forEach(row => {
+            const tr = document.createElement("tr");
+            Object.values(row).forEach(val => {
+              const td = document.createElement("td");
+              td.className = "border border-gray-300 px-4 py-2";
+              td.textContent = val;
+              tr.appendChild(td);
+            });
+            tableBody.appendChild(tr);
+          });
 
-function renderPagination(totalRows) {
-  const pageCount = Math.ceil(totalRows / rowsPerPage);
-  const pagination = document.getElementById('pagination');
-  pagination.innerHTML = '';
-
-  for (let i = 1; i <= pageCount; i++) {
-    const li = document.createElement('li');
-    li.className = `page-item ${i === currentPage ? 'active' : ''}`;
-    const a = document.createElement('a');
-    a.className = 'page-link';
-    a.href = '#';
-    a.textContent = i;
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      currentPage = i;
-      renderTable(currentHeaders, currentData);
-    });
-    li.appendChild(a);
-    pagination.appendChild(li);
-  }
-}
-
-function loadCsv() {
-  Papa.parse(CSV_URL, {
-    download: true,
-    complete: (results) => {
-      currentHeaders = results.data[0];
-      currentData = results.data.slice(1).filter(r => r.length > 1);
-      currentPage = 1;
-      renderTable(currentHeaders, currentData);
-      document.getElementById('lastUpdate').textContent = "Terakhir diperbarui: " + new Date().toLocaleTimeString();
+          // Update waktu terakhir refresh
+          const now = new Date();
+          document.getElementById("lastUpdate").textContent =
+            "⏰ Terakhir diperbarui: " + now.toLocaleString("id-ID");
+        }
+      });
     }
-  });
-}
 
-// Tombol Reload manual
-document.getElementById('reload').addEventListener('click', loadCsv);
+    // Load pertama kali
+    loadData();
 
-// Download CSV
-document.getElementById('csv').addEventListener('click', () => {
-  const csv = [currentHeaders, ...currentData].map(r => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'hasil_absen.csv';
-  a.click();
-});
-
-// Search
-document.getElementById('search').addEventListener('input', e => {
-  const q = e.target.value.toLowerCase();
-  const filtered = currentData.filter(r => r.some(c => String(c).toLowerCase().includes(q)));
-  currentPage = 1;
-  renderTable(currentHeaders, filtered);
-});
-
-// Muat pertama kali
-loadCsv();
-
-// Auto update setiap 5 menit
-setInterval(loadCsv, 300000);
-</script>
-
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    // Update otomatis setiap 5 menit (300.000 ms)
+    setInterval(loadData, 300000);
+  </script>
 </body>
 </html>
