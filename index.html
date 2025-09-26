@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Hasil Absen</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Library untuk parsing CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
   <div class="max-w-6xl mx-auto">
-    <h1 class="text-3xl font-bold mb-4 text-blue-700">Hasil Absen</h1>
+    <h1 class="text-2xl font-bold mb-4 text-blue-700">Hasil Absen</h1>
 
     <div class="flex gap-2 mb-4">
       <input id="search" type="search" placeholder="Cari..." 
@@ -18,40 +20,21 @@
     </div>
 
     <div id="tableWrap" class="overflow-x-auto bg-white shadow rounded-lg">
-      <table id="sheetTable" class="min-w-full text-sm border-collapse" />
+      <table id="sheetTable" class="min-w-full text-sm border-collapse"></table>
     </div>
-
-    <p class="mt-4 text-xs text-gray-500">
-      Catatan: Spreadsheet harus dipublikasikan ke web agar data bisa dibaca.
-    </p>
   </div>
 
 <script>
-const SPREADSHEET_ID = '1E765wMRhoe0CtvPXk4-uUrEb-xAce96uy4TNRmriy0Y';
-const SHEET_NAME = 'Hasil Absen';
+// Ganti URL di bawah dengan link CSV dari "Publish to the web"
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vToe0xNuzA78YNxdhI7-JGaA1oPBuRH9JlQgzwoaE8C0U5kG4FNOajyzKyddqkKAWE0hDKX9vrq-QhB/pub?gid=1735243266&single=true&output=csv";
 
-function gvizUrl(id, sheet) {
-  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheet)}`;
-}
-
-async function fetchSheetJson() {
-  const res = await fetch(gvizUrl(SPREADSHEET_ID, SHEET_NAME));
-  const text = await res.text();
-  const jsonText = text.replace(/^.*setResponse\\(/, '').replace(/\\);?$/, '');
-  return JSON.parse(jsonText);
-}
-
-function tableFromGviz(gJson) {
-  const headers = gJson.table.cols.map(c => c.label || '');
-  const data = gJson.table.rows.map(r => r.c.map(c => (c ? c.v : '')));
-  return { headers, data };
-}
+let currentHeaders = [], currentData = [];
 
 function renderTable(headers, data) {
   const table = document.getElementById('sheetTable');
   table.innerHTML = '';
 
-  // header
+  // Header
   const thead = document.createElement('thead');
   thead.className = 'bg-blue-100';
   const trh = document.createElement('tr');
@@ -64,7 +47,7 @@ function renderTable(headers, data) {
   thead.appendChild(trh);
   table.appendChild(thead);
 
-  // body
+  // Body
   const tbody = document.createElement('tbody');
   data.forEach((row, i) => {
     const tr = document.createElement('tr');
@@ -80,25 +63,20 @@ function renderTable(headers, data) {
   table.appendChild(tbody);
 }
 
-let currentHeaders = [], currentData = [];
-
-async function loadAndRender() {
-  try {
-    const g = await fetchSheetJson();
-    const { headers, data } = tableFromGviz(g);
-    currentHeaders = headers;
-    currentData = data;
-    renderTable(headers, data);
-  } catch (err) {
-    document.getElementById('tableWrap').innerHTML = 
-      `<div class="p-4 text-red-600">Error: ${err.message}</div>`;
-  }
+function loadCsv() {
+  Papa.parse(CSV_URL, {
+    download: true,
+    complete: (results) => {
+      currentHeaders = results.data[0];
+      currentData = results.data.slice(1).filter(r => r.length > 1);
+      renderTable(currentHeaders, currentData);
+    }
+  });
 }
 
-document.getElementById('reload').addEventListener('click', loadAndRender);
+document.getElementById('reload').addEventListener('click', loadCsv);
 document.getElementById('csv').addEventListener('click', () => {
-  const all = [currentHeaders, ...currentData];
-  const csv = all.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\\n');
+  const csv = [currentHeaders, ...currentData].map(r => r.join(",")).join("\\n");
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -111,7 +89,7 @@ document.getElementById('search').addEventListener('input', e => {
   renderTable(currentHeaders, filtered);
 });
 
-loadAndRender();
+loadCsv();
 </script>
 </body>
 </html>
