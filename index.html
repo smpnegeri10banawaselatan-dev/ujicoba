@@ -35,6 +35,9 @@
     <nav class="mt-4">
       <ul id="pagination" class="pagination justify-content-center"></ul>
     </nav>
+
+    <!-- Last update info -->
+    <p id="lastUpdate" class="text-gray-500 text-sm mt-2 text-center"></p>
   </div>
 
 <script>
@@ -113,11 +116,15 @@ function loadCsv() {
       currentData = results.data.slice(1).filter(r => r.length > 1);
       currentPage = 1;
       renderTable(currentHeaders, currentData);
+      document.getElementById('lastUpdate').textContent = "Terakhir diperbarui: " + new Date().toLocaleTimeString();
     }
   });
 }
 
+// Tombol Reload manual
 document.getElementById('reload').addEventListener('click', loadCsv);
+
+// Download CSV
 document.getElementById('csv').addEventListener('click', () => {
   const csv = [currentHeaders, ...currentData].map(r => r.join(",")).join("\n");
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -126,6 +133,8 @@ document.getElementById('csv').addEventListener('click', () => {
   a.download = 'hasil_absen.csv';
   a.click();
 });
+
+// Search
 document.getElementById('search').addEventListener('input', e => {
   const q = e.target.value.toLowerCase();
   const filtered = currentData.filter(r => r.some(c => String(c).toLowerCase().includes(q)));
@@ -133,7 +142,11 @@ document.getElementById('search').addEventListener('input', e => {
   renderTable(currentHeaders, filtered);
 });
 
+// Muat pertama kali
 loadCsv();
+
+// Auto update setiap 5 menit
+setInterval(loadCsv, 300000);
 </script>
 
 <!-- Bootstrap JS -->
