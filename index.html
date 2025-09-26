@@ -4,14 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Hasil Absen Kehadiran Siswa</title>
+  
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Library untuk parsing CSV -->
+  
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
   <div class="max-w-6xl mx-auto">
     <h1 class="text-2xl font-bold mb-4 text-blue-700">Hasil Absen Kehadiran Siswa</h1>
 
+    <!-- Toolbar -->
     <div class="flex gap-2 mb-4">
       <input id="search" type="search" placeholder="Cari..." 
         class="flex-1 px-3 py-2 border rounded shadow-sm focus:ring focus:ring-blue-300" />
@@ -19,16 +26,23 @@
       <button id="csv" class="px-4 py-2 bg-green-600 text-white rounded shadow">Download CSV</button>
     </div>
 
+    <!-- Table -->
     <div id="tableWrap" class="overflow-x-auto bg-white shadow rounded-lg">
       <table id="sheetTable" class="min-w-full text-sm border-collapse"></table>
     </div>
+
+    <!-- Pagination -->
+    <nav class="mt-4">
+      <ul id="pagination" class="pagination justify-content-center"></ul>
+    </nav>
   </div>
 
 <script>
-// Ganti URL di bawah dengan link CSV dari "Publish to the web"
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vToe0xNuzA78YNxdhI7-JGaA1oPBuRH9JlQgzwoaE8C0U5kG4FNOajyzKyddqkKAWE0hDKX9vrq-QhB/pub?gid=1735243266&single=true&output=csv";
 
 let currentHeaders = [], currentData = [];
+let currentPage = 1;
+const rowsPerPage = 10;
 
 function renderTable(headers, data) {
   const table = document.getElementById('sheetTable');
@@ -47,9 +61,13 @@ function renderTable(headers, data) {
   thead.appendChild(trh);
   table.appendChild(thead);
 
-  // Body
+  // Body (pagination slice)
   const tbody = document.createElement('tbody');
-  data.forEach((row, i) => {
+  const start = (currentPage - 1) * rowsPerPage;
+  const end = start + rowsPerPage;
+  const pageData = data.slice(start, end);
+
+  pageData.forEach((row, i) => {
     const tr = document.createElement('tr');
     tr.className = i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
     row.forEach(cell => {
@@ -61,6 +79,30 @@ function renderTable(headers, data) {
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
+
+  renderPagination(data.length);
+}
+
+function renderPagination(totalRows) {
+  const pageCount = Math.ceil(totalRows / rowsPerPage);
+  const pagination = document.getElementById('pagination');
+  pagination.innerHTML = '';
+
+  for (let i = 1; i <= pageCount; i++) {
+    const li = document.createElement('li');
+    li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+    const a = document.createElement('a');
+    a.className = 'page-link';
+    a.href = '#';
+    a.textContent = i;
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      currentPage = i;
+      renderTable(currentHeaders, currentData);
+    });
+    li.appendChild(a);
+    pagination.appendChild(li);
+  }
 }
 
 function loadCsv() {
@@ -69,6 +111,7 @@ function loadCsv() {
     complete: (results) => {
       currentHeaders = results.data[0];
       currentData = results.data.slice(1).filter(r => r.length > 1);
+      currentPage = 1;
       renderTable(currentHeaders, currentData);
     }
   });
@@ -76,7 +119,7 @@ function loadCsv() {
 
 document.getElementById('reload').addEventListener('click', loadCsv);
 document.getElementById('csv').addEventListener('click', () => {
-  const csv = [currentHeaders, ...currentData].map(r => r.join(",")).join("\\n");
+  const csv = [currentHeaders, ...currentData].map(r => r.join(",")).join("\n");
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -86,10 +129,14 @@ document.getElementById('csv').addEventListener('click', () => {
 document.getElementById('search').addEventListener('input', e => {
   const q = e.target.value.toLowerCase();
   const filtered = currentData.filter(r => r.some(c => String(c).toLowerCase().includes(q)));
+  currentPage = 1;
   renderTable(currentHeaders, filtered);
 });
 
 loadCsv();
 </script>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
